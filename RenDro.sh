@@ -4,8 +4,10 @@
 # Creator : Renz
 # YouTube : @Renz-Mc
 # TikTok  : fsociety_rl
+# License : Apache 2.0
 # Target  : adb shell / Shizuku-like shell / Brevent-like shell
 # Root    : Not required. Some tweaks depend on Android/OEM support.
+# JANGAN JUAL TOOLS INI INI GRATIS DARI REN OKE KONTOL
 # ============================================================
 
 VERSION="1.0.0"

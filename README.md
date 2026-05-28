@@ -1,2 +1,1 @@
-# RenDro
-Android Settings for gaming
+### RenDro Features ### : Ultra Max & Balanced Gaming Mode, adaptive DPI engine, custom DPI manual, custom resolusi aman dengan 5s preview auto rollback, force highest refresh rate, optimasi GPU/render pipeline, boost touch & input response, tuning power/latency system, fast/zero animation mode, maintenance & dexopt trigger, full backup/restore settings, reset DPI/resolusi, device status monitor, CLI + interactive menu support tanpa root (tergantung support ROM/OEM).

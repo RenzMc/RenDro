@@ -7,53 +7,29 @@
 # License : Apache 2.0
 # Target  : adb shell / Shizuku-like shell / Brevent-like shell
 # Root    : Not required. Some tweaks depend on Android/OEM support.
-# JANGAN JUAL TOOLS INI INI GRATIS DARI REN OKE KONTOL
 # ============================================================
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 CREATOR="Renz"
 YOUTUBE="@Renz-Mc"
 TIKTOK="fsociety_rl"
+
 WORKDIR="/sdcard/RenDro"
 BACKUP_FILE="$WORKDIR/backup.properties"
 LOG_FILE="$WORKDIR/rendro.log"
 LOCK_DIR="/data/local/tmp/rendro_safe.lock"
-MODE="${1:-menu}"
+
+MODE="${1:-help}"
 ARG2="${2:-}"
 
-# Android shell apps such as Brevent/Bravent, Shizuku terminals, and many
-# embedded Shell APK consoles often do not render ANSI escape sequences
-# correctly. Keep output plain by default so users do not see raw "^[...m"
-# codes and screen clear spam. Set RENDRO_COLOR=1 only if your terminal
-# is known to support ANSI colors.
 if [ "${RENDRO_COLOR:-0}" = "1" ]; then
   ESC="$(printf '\033')"
-  RED="${ESC}[31m"
-  GREEN="${ESC}[32m"
-  YELLOW="${ESC}[33m"
-  BLUE="${ESC}[34m"
-  MAGENTA="${ESC}[35m"
-  CYAN="${ESC}[36m"
-  WHITE="${ESC}[37m"
-  BOLD="${ESC}[1m"
-  DIM="${ESC}[2m"
-  RESET="${ESC}[0m"
-  BG_BLUE="${ESC}[44m"
-  BG_MAGENTA="${ESC}[45m"
+  RED="${ESC}[31m"; GREEN="${ESC}[32m"; YELLOW="${ESC}[33m"; BLUE="${ESC}[34m"
+  MAGENTA="${ESC}[35m"; CYAN="${ESC}[36m"; WHITE="${ESC}[37m"; BOLD="${ESC}[1m"
+  DIM="${ESC}[2m"; RESET="${ESC}[0m"; BG_BLUE="${ESC}[44m"; BG_MAGENTA="${ESC}[45m"
 else
-  ESC=""
-  RED=""
-  GREEN=""
-  YELLOW=""
-  BLUE=""
-  MAGENTA=""
-  CYAN=""
-  WHITE=""
-  BOLD=""
-  DIM=""
-  RESET=""
-  BG_BLUE=""
-  BG_MAGENTA=""
+  RED=""; GREEN=""; YELLOW=""; BLUE=""; MAGENTA=""; CYAN=""; WHITE=""; BOLD=""
+  DIM=""; RESET=""; BG_BLUE=""; BG_MAGENTA=""
 fi
 
 cleanup() { rmdir "$LOCK_DIR" 2>/dev/null; }
@@ -62,7 +38,7 @@ trap cleanup EXIT HUP INT TERM
 init_env() {
   mkdir -p "$WORKDIR" 2>/dev/null || true
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    printf '%s\n' "${YELLOW}[WARN] RenDro sepertinya masih berjalan. Kalau yakin tidak, hapus: $LOCK_DIR${RESET}"
+    printf '%s\n' "${YELLOW}[WARN] RenDro sedang berjalan. Jika tidak, hapus: $LOCK_DIR${RESET}"
     exit 1
   fi
 }
@@ -72,100 +48,36 @@ log() {
   printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" "$*" >>"$LOG_FILE" 2>/dev/null || true
 }
 
+info() { printf '%s\n' "${CYAN}[INFO]${RESET} $*"; log "INFO: $*"; }
+ok()   { printf '%s\n' "${GREEN}[ OK ]${RESET} $*"; log "OK: $*"; }
+warn() { printf '%s\n' "${YELLOW}[WARN]${RESET} $*"; log "WARN: $*"; }
+fail() { printf '%s\n' "${RED}[FAIL]${RESET} $*"; log "FAIL: $*"; }
+
 line() { printf '%s\n' "${DIM}${MAGENTA}============================================================${RESET}"; }
 thin() { printf '%s\n' "${DIM}------------------------------------------------------------${RESET}"; }
-info() {
-  printf '%s\n' "${CYAN}${BOLD}[INFO]${RESET} $*"
-  log "INFO: $*"
-}
-ok() {
-  printf '%s\n' "${GREEN}${BOLD}[ OK ]${RESET} $*"
-  log "OK: $*"
-}
-warn() {
-  printf '%s\n' "${YELLOW}${BOLD}[WARN]${RESET} $*"
-  log "WARN: $*"
-}
-fail() {
-  printf '%s\n' "${RED}${BOLD}[FAIL]${RESET} $*"
-  log "FAIL: $*"
-}
-
-safe_read() {
-  # Usage: safe_read varname
-  # Returns 1 when stdin is closed/non-interactive. This prevents infinite
-  # menu redraw loops on Android Shell APK/Brevent style shproc runners.
-  _sr_var="$1"
-  _sr_line=""
-  case "$_sr_var" in ''|*[!A-Za-z0-9_]*) return 1 ;; esac
-  if IFS= read -r _sr_line; then
-    # Safely quote the input before assigning through eval.
-    _sr_quoted=$(printf "%s" "$_sr_line" | sed "s/'/'\\''/g")
-    eval "$_sr_var='$_sr_quoted'"
-    return 0
-  fi
-  eval "$_sr_var=''"
-  return 1
-}
-
-pause_enter() {
-  printf '\n%s' "Tekan Enter untuk lanjut... "
-  safe_read _dummy || { printf '\n'; return 0; }
-}
-sleep_tiny() { sleep 0.05 2>/dev/null || sleep 1; }
 
 banner() {
-  # Do not clear the screen by default. Some Android shell consoles print
-  # clear-screen escape codes literally, causing unreadable repeated output.
   [ "${RENDRO_CLEAR:-0}" = "1" ] && clear 2>/dev/null || true
   printf '%s\n' "${MAGENTA}${BOLD}"
   cat <<'ART'
- â–ˆâ–ˆâ–€â–ˆâ–ˆâ–ˆ  â–“â–ˆâ–ˆâ–ˆâ–ˆâ–ˆ  â–ˆâ–ˆâ–ˆâ–„    â–ˆ â–“â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–„  â–ˆâ–ˆâ–€â–ˆâ–ˆâ–ˆ   â–’â–ˆâ–ˆâ–ˆâ–ˆâ–ˆ  
-â–“â–ˆâ–ˆ â–’ â–ˆâ–ˆâ–’â–“â–ˆ   â–€  â–ˆâ–ˆ â–€â–ˆ   â–ˆ â–’â–ˆâ–ˆâ–€ â–ˆâ–ˆâ–Œâ–“â–ˆâ–ˆ â–’ â–ˆâ–ˆâ–’â–’â–ˆâ–ˆâ–’  â–ˆâ–ˆâ–’
-â–“â–ˆâ–ˆ â–‘â–„â–ˆ â–’â–’â–ˆâ–ˆâ–ˆ   â–“â–ˆâ–ˆ  â–€â–ˆ â–ˆâ–ˆâ–’â–‘â–ˆâ–ˆ   â–ˆâ–Œâ–“â–ˆâ–ˆ â–‘â–„â–ˆ â–’â–’â–ˆâ–ˆâ–‘  â–ˆâ–ˆâ–’
-â–’â–ˆâ–ˆâ–€â–€â–ˆâ–„  â–’â–“â–ˆ  â–„ â–“â–ˆâ–ˆâ–’  â–â–Œâ–ˆâ–ˆâ–’â–‘â–“â–ˆâ–„   â–Œâ–’â–ˆâ–ˆâ–€â–€â–ˆâ–„  â–’â–ˆâ–ˆ   â–ˆâ–ˆâ–‘
-â–‘â–ˆâ–ˆâ–“ â–’â–ˆâ–ˆâ–’â–‘â–’â–ˆâ–ˆâ–ˆâ–ˆâ–’â–’â–ˆâ–ˆâ–‘   â–“â–ˆâ–ˆâ–‘â–‘â–’â–ˆâ–ˆâ–ˆâ–ˆâ–“ â–‘â–ˆâ–ˆâ–“ â–’â–ˆâ–ˆâ–’â–‘ â–ˆâ–ˆâ–ˆâ–ˆâ–“â–’â–‘
-â–‘ â–’â–“ â–‘â–’â–“â–‘â–‘â–‘ â–’â–‘ â–‘â–‘ â–’â–‘   â–’ â–’  â–’â–’â–“  â–’ â–‘ â–’â–“ â–‘â–’â–“â–‘â–‘ â–’â–‘â–’â–‘â–’â–‘ 
-  â–‘â–’ â–‘ â–’â–‘ â–‘ â–‘  â–‘â–‘ â–‘â–‘   â–‘ â–’â–‘ â–‘ â–’  â–’   â–‘â–’ â–‘ â–’â–‘  â–‘ â–’ â–’â–‘ 
-  â–‘â–‘   â–‘    â–‘      â–‘   â–‘ â–‘  â–‘ â–‘  â–‘   â–‘â–‘   â–‘ â–‘ â–‘ â–‘ â–’  
-   â–‘        â–‘  â–‘         â–‘    â–‘       â–‘         â–‘ â–‘  
-                            â–‘                        
+ ██▀███  ▓█████  ███▄    █ ▓█████▄  ██▀███   ▒█████
+▓██ ▒ ██▒▓█   ▀  ██ ▀█   █ ▒██▀ ██▌▓██ ▒ ██▒▒██▒  ██▒
+▓██ ░▄█ ▒▒███   ▓██  ▀█ ██▒░██   █▌▓██ ░▄█ ▒▒██░  ██▒
+▒██▀▀█▄  ▒▓█  ▄ ▓██▒  ▐▌██▒░▓█▄   ▌▒██▀▀█▄  ▒██   ██░
+░██▓ ▒██▒░▒████▒▒██░   ▓██░░▒████▓ ░██▓ ▒██▒░ ████▓▒░
+░ ▒▓ ░▒▓░░░ ▒░ ░░ ▒░   ▒ ▒  ▒▒▓  ▒ ░ ▒▓ ░▒▓░░ ▒░▒░▒░
+  ░▒ ░ ▒░ ░ ░  ░░ ░░   ░ ▒░ ░ ▒  ▒   ░▒ ░ ▒░  ░ ▒ ▒░
+  ░░   ░    ░      ░   ░ ░  ░ ░  ░   ░░   ░ ░ ░ ░ ▒
+   ░        ░  ░         ░    ░       ░         ░ ░
+                            ░
 ART
-  printf '%s\n' "${RESET}${CYAN}${BOLD}      Ultra Android Gaming Tuner - ADB Shell Edition${RESET}"
+  printf '%s\n' "${RESET}${CYAN}${BOLD}      Ultra Android Gaming Tuner - Command Edition${RESET}"
   printf '%s\n' "${WHITE}${BOLD}      Creator:${RESET} ${GREEN}$CREATOR${RESET} | ${WHITE}${BOLD}YouTube:${RESET} ${RED}$YOUTUBE${RESET} | ${WHITE}${BOLD}TikTok:${RESET} ${CYAN}$TIKTOK${RESET}"
-  printf '%s\n' "${DIM}      Version $VERSION | Safer backup | DPI | Resolution preview rollback${RESET}"
+  printf '%s\n' "${DIM}      Version $VERSION | Ultra/Balanced tanpa ubah DPI | Custom DPI & Res tetap ada${RESET}"
   line
 }
 
-section() { printf '\n%s\n' "${BG_MAGENTA}${WHITE}${BOLD} $1 ${RESET}"; }
-progress() {
-  label="$1"
-  percent="$2"
-  filled=$((percent / 4))
-  empty=$((25 - filled))
-  bar=""
-  i=0
-  while [ "$i" -lt "$filled" ]; do
-    bar="${bar}#"
-    i=$((i + 1))
-  done
-  i=0
-  while [ "$i" -lt "$empty" ]; do
-    bar="${bar}."
-    i=$((i + 1))
-  done
-  printf '%s [%s] %3s%% %s\n' "${YELLOW}>${RESET}" "$bar" "$percent" "$label"
-}
-run_step() {
-  label="$1"
-  percent="$2"
-  shift 2
-  progress "$label" "$percent"
-  sleep_tiny
-  "$@"
-}
-
-is_uint() { case "${1:-}" in '' | *[!0-9]*) return 1 ;; *) return 0 ;; esac }
+is_uint() { case "${1:-}" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac; }
 is_res() { printf '%s' "${1:-}" | grep -Eq '^[0-9]{3,5}x[0-9]{3,5}$'; }
 trim_cr() { tr -d '\r'; }
 
@@ -186,7 +98,7 @@ settings_delete() { settings delete "$1" "$2" >/dev/null 2>&1 || true; }
 save_prop() {
   key="$1"
   value="$2"
-  case "$key" in *[!A-Za-z0-9._-]* | '')
+  case "$key" in *[!A-Za-z0-9._-]*|'')
     warn "Backup key tidak aman: $key"
     return 1
     ;;
@@ -194,7 +106,6 @@ save_prop() {
   printf '%s=%s\n' "$key" "$value" >>"$BACKUP_FILE" 2>/dev/null || true
 }
 
-# Fixed: exact key lookup without regex wildcard. Dots in key are literal now.
 prop_get() {
   key="$1"
   [ -f "$BACKUP_FILE" ] || return 0
@@ -219,8 +130,10 @@ get_wm_current_size() {
 }
 get_wm_physical_density() { wm density 2>/dev/null | sed -n 's/.*Physical density: //p' | head -n 1 | trim_cr; }
 get_wm_override_density() { wm density 2>/dev/null | sed -n 's/.*Override density: //p' | head -n 1 | trim_cr; }
+
 get_width() { printf '%s' "$1" | awk -Fx '{print $1}'; }
 get_height() { printf '%s' "$1" | awk -Fx '{print $2}'; }
+
 min2() {
   if [ "$1" -le "$2" ] 2>/dev/null; then
     printf '%s\n' "$1"
@@ -241,6 +154,7 @@ calc_adaptive_dpi() {
   height="$2"
   short="$width"
   [ "$height" -lt "$width" ] 2>/dev/null && short="$height"
+
   if [ "$short" -le 800 ] 2>/dev/null; then
     echo 420
   elif [ "$short" -le 1080 ] 2>/dev/null; then
@@ -249,7 +163,9 @@ calc_adaptive_dpi() {
     echo 600
   elif [ "$short" -le 1440 ] 2>/dev/null; then
     echo 640
-  else echo 680; fi
+  else
+    echo 680
+  fi
 }
 
 validate_dpi() {
@@ -263,23 +179,31 @@ validate_resolution_safe() {
   phys="$2"
   is_res "$res" || return 1
   is_res "$phys" || return 1
+
   w="$(get_width "$res")"
   h="$(get_height "$res")"
   pw="$(get_width "$phys")"
   ph="$(get_height "$phys")"
+
   short="$(min2 "$w" "$h")"
   long="$(max2 "$w" "$h")"
   pshort="$(min2 "$pw" "$ph")"
   plong="$(max2 "$pw" "$ph")"
+
   min_short=$((pshort * 60 / 100))
   min_long=$((plong * 60 / 100))
   max_short=$((pshort * 120 / 100))
   max_long=$((plong * 120 / 100))
+
   [ "$min_short" -lt 480 ] && min_short=480
   [ "$min_long" -lt 800 ] && min_long=800
   [ "$max_short" -gt 2160 ] && max_short=2160
   [ "$max_long" -gt 3840 ] && max_long=3840
-  [ "$short" -ge "$min_short" ] 2>/dev/null && [ "$long" -ge "$min_long" ] 2>/dev/null && [ "$short" -le "$max_short" ] 2>/dev/null && [ "$long" -le "$max_long" ] 2>/dev/null
+
+  [ "$short" -ge "$min_short" ] 2>/dev/null &&
+  [ "$long" -ge "$min_long" ] 2>/dev/null &&
+  [ "$short" -le "$max_short" ] 2>/dev/null &&
+  [ "$long" -le "$max_long" ] 2>/dev/null
 }
 
 print_resolution_limits() {
@@ -288,24 +212,23 @@ print_resolution_limits() {
   ph="$(get_height "$phys")"
   pshort="$(min2 "$pw" "$ph")"
   plong="$(max2 "$pw" "$ph")"
+
   min_short=$((pshort * 60 / 100))
   min_long=$((plong * 60 / 100))
   max_short=$((pshort * 120 / 100))
   max_long=$((plong * 120 / 100))
+
   [ "$min_short" -lt 480 ] && min_short=480
   [ "$min_long" -lt 800 ] && min_long=800
   [ "$max_short" -gt 2160 ] && max_short=2160
   [ "$max_long" -gt 3840 ] && max_long=3840
-  info "Batas aman berbasis layar fisik $phys: sisi pendek $min_short-$max_short, sisi panjang $min_long-$max_long."
+
+  info "Batas aman layar fisik $phys: sisi pendek $min_short-$max_short, sisi panjang $min_long-$max_long."
 }
 
 find_max_refresh_rate() {
   rate="$(dumpsys display 2>/dev/null | grep -Eo '([0-9]{2,3})(\.[0-9]+)?Hz|fps=[0-9]{2,3}(\.[0-9]+)?|refreshRate[ =][0-9]{2,3}(\.[0-9]+)?' | grep -Eo '[0-9]{2,3}(\.[0-9]+)?' | sort -nr | head -n 1)"
-  if [ -n "$rate" ]; then
-    echo "$rate"
-  else
-    echo 120
-  fi
+  [ -n "$rate" ] && echo "$rate" || echo 120
 }
 
 backup_wm() {
@@ -317,17 +240,17 @@ backup_wm() {
 
 create_backup() {
   mkdir -p "$WORKDIR" 2>/dev/null || true
-  if [ -f "$BACKUP_FILE" ]; then
-    cp "$BACKUP_FILE" "$BACKUP_FILE.prev" 2>/dev/null || true
-  fi
+  [ -f "$BACKUP_FILE" ] && cp "$BACKUP_FILE" "$BACKUP_FILE.prev" 2>/dev/null || true
   : >"$BACKUP_FILE" || {
     fail "Tidak bisa menulis backup: $BACKUP_FILE"
     return 1
   }
+
   save_prop "rendro.version" "$VERSION"
   save_prop "rendro.creator" "$CREATOR"
   save_prop "backup.date" "$(date '+%Y-%m-%d_%H:%M:%S' 2>/dev/null)"
   backup_wm
+
   backup_setting global window_animation_scale
   backup_setting global transition_animation_scale
   backup_setting global animator_duration_scale
@@ -358,6 +281,7 @@ create_backup() {
   backup_setting system pointer_speed
   backup_setting system haptic_feedback_enabled
   backup_setting system sound_effects_enabled
+
   ok "Backup dibuat: $BACKUP_FILE"
 }
 
@@ -369,28 +293,22 @@ apply_dpi_value() {
     else
       warn "Gagal set DPI ke $dpi"
     fi
-  else warn "DPI '$dpi' tidak valid. Range aman: 240-900."; fi
+  else
+    warn "DPI '$dpi' tidak valid. Range aman: 240-900."
+  fi
 }
+
 apply_adaptive_dpi() {
   res="$(get_wm_current_size)"
   [ -z "$res" ] && {
     warn "Resolusi tidak terdeteksi; DPI diskip."
     return 0
   }
+
   width="$(get_width "$res")"
   height="$(get_height "$res")"
   dpi="$(calc_adaptive_dpi "$width" "$height")"
-  info "Resolusi aktif: ${width}x${height}; DPI adaptive target: $dpi"
-  apply_dpi_value "$dpi"
-}
-interactive_custom_dpi() {
-  section "CUSTOM DPI ENGINE"
-  printf '%s\n' "${CYAN}Masukkan DPI manual. Range aman 240-900.${RESET}"
-  printf '%s' "DPI custom: "
-  if ! safe_read dpi; then
-    warn "Input tidak tersedia. Jalankan command mode: sh RenDro.sh custom-dpi 600"
-    return 1
-  fi
+  info "Resolusi aktif: ${width}x${height}; target DPI adaptive: $dpi"
   apply_dpi_value "$dpi"
 }
 
@@ -407,16 +325,19 @@ apply_refresh_rate() {
     ok "Preferred display mode dicoba via cmd display."
   fi
 }
+
 apply_animation_fast() {
   settings_put global window_animation_scale 0.5
   settings_put global transition_animation_scale 0.5
   settings_put global animator_duration_scale 0.5
 }
+
 apply_animation_zero() {
   settings_put global window_animation_scale 0
   settings_put global transition_animation_scale 0
   settings_put global animator_duration_scale 0
 }
+
 apply_rendering_balanced() {
   settings_put global development_settings_enabled 1
   settings_put global force_gpu_rendering 1
@@ -430,10 +351,12 @@ apply_rendering_balanced() {
     ok "SurfaceFlinger overlay toggle dicoba."
   fi
 }
+
 apply_rendering_ultra() {
   apply_rendering_balanced
   settings_put global debug.hwui.renderer skiagl
 }
+
 apply_power_latency() {
   settings_put global low_power 0
   settings_put global mobile_data_always_on 1
@@ -445,11 +368,13 @@ apply_power_latency() {
   settings_put global activity_manager_constants "max_cached_processes=16,background_settle_time=0,fgservice_min_shown_time=0,fgservice_min_report_time=0"
   settings_put global fstrim_mandatory_interval 86400000
 }
+
 apply_input_gaming() {
   settings_put system pointer_speed 7
   settings_put system haptic_feedback_enabled 0
   settings_put system sound_effects_enabled 0
 }
+
 apply_maintenance() {
   if cmd activity idle-maintenance >/dev/null 2>&1; then
     ok "Idle maintenance dipicu."
@@ -460,6 +385,15 @@ apply_maintenance() {
   if cmd jobscheduler run -f android 800 >/dev/null 2>&1; then
     ok "JobScheduler maintenance dicoba."
   fi
+}
+
+confirm_preview_5s() {
+  printf '\n%s\n' "${YELLOW}[WARN]${RESET} Preview aktif. Ketik ${GREEN}Y${RESET} lalu Enter dalam 5 detik untuk simpan."
+  printf '%s\n' "Kalau tidak, otomatis rollback."
+  printf '%s' "Konfirmasi [Y/N] 5s: "
+  ans=""
+  if read -r -t 5 ans 2>/dev/null; then :; else ans=""; fi
+  case "$ans" in Y|y|YES|yes) return 0 ;; *) return 1 ;; esac
 }
 
 rollback_resolution_to() {
@@ -479,69 +413,43 @@ rollback_resolution_to() {
   fi
 }
 
-confirm_preview_5s() {
-  printf '\n%s\n' "${YELLOW}${BOLD}Preview aktif.${RESET} Kalau layar aman dan nyaman, ketik ${GREEN}Y${RESET} lalu Enter dalam 5 detik."
-  printf '%s\n' "Ketik N atau biarkan timeout untuk otomatis rollback."
-  printf '%s' "Konfirmasi [Y/N] 5s: "
-  ans=""
-  # Android /system/bin/sh is commonly mksh and supports read -t. If the
-  # shell/runner does not support it or stdin is closed, rollback safely.
-  if read -r -t 5 ans 2>/dev/null; then
-    :
-  else
-    ans=""
-  fi
-  case "$ans" in Y | y | YES | yes) return 0 ;; *) return 1 ;; esac
-}
-
 apply_custom_resolution_value() {
   target="$1"
   phys="$(get_wm_physical_size)"
   current_override="$(get_wm_override_size)"
   current="$(get_wm_current_size)"
+
   [ -z "$phys" ] && {
     fail "Resolusi fisik tidak terdeteksi. Fitur dibatalkan demi keamanan."
     return 1
   }
+
   print_resolution_limits "$phys"
+
   if ! validate_resolution_safe "$target" "$phys"; then
     fail "Resolusi '$target' di luar batas aman untuk layar fisik $phys."
     return 1
   fi
+
   old="$current_override"
   [ -z "$old" ] && old="null"
+
   info "Resolusi aktif sekarang: ${current:-unknown}; target preview: $target"
-  if wm size "$target" >/dev/null 2>&1; then ok "Preview resolusi diterapkan: $target"; else
+  if wm size "$target" >/dev/null 2>&1; then
+    ok "Preview resolusi diterapkan: $target"
+  else
     fail "Gagal menerapkan resolusi preview."
     return 1
   fi
+
   if confirm_preview_5s; then
     ok "Resolusi custom disimpan: $target"
     save_prop "rendro.last_custom_size" "$target"
     return 0
   fi
+
   warn "Tidak dikonfirmasi. Rollback otomatis."
   rollback_resolution_to "$old"
-}
-
-interactive_custom_resolution() {
-  section "CUSTOM RESOLUTION SAFE PREVIEW"
-  phys="$(get_wm_physical_size)"
-  cur="$(get_wm_current_size)"
-  [ -z "$phys" ] && {
-    fail "Resolusi fisik tidak terdeteksi."
-    return 1
-  }
-  info "Resolusi fisik: $phys"
-  info "Resolusi aktif: ${cur:-unknown}"
-  print_resolution_limits "$phys"
-  printf '%s\n' "${CYAN}Format wajib: WIDTHxHEIGHT. Contoh: 1080x2400 atau 900x2000.${RESET}"
-  printf '%s' "Resolusi custom: "
-  if ! safe_read target; then
-    warn "Input tidak tersedia. Jalankan command mode: sh RenDro.sh custom-res 1080x2400"
-    return 1
-  fi
-  apply_custom_resolution_value "$target"
 }
 
 restore_setting() {
@@ -550,6 +458,7 @@ restore_setting() {
   prop="settings.$namespace.$key"
   value="$(prop_get "$prop")"
   [ -z "$value" ] && return 0
+
   if [ "$value" = "null" ]; then
     settings_delete "$namespace" "$key"
     ok "Restore: hapus $namespace.$key"
@@ -558,21 +467,34 @@ restore_setting() {
     ok "Restore: $namespace.$key = $value"
   fi
 }
+
 restore_wm() {
   od="$(prop_get wm.override_density)"
   os="$(prop_get wm.override_size)"
-  if [ -n "$os" ] && [ "$os" != "null" ]; then wm size "$os" >/dev/null 2>&1 && ok "Resolusi override direstore ke $os"; else wm size reset >/dev/null 2>&1 && ok "Resolusi direset ke default fisik"; fi
-  if [ -n "$od" ] && [ "$od" != "null" ]; then wm density "$od" >/dev/null 2>&1 && ok "DPI override direstore ke $od"; else wm density reset >/dev/null 2>&1 && ok "DPI direset ke default fisik"; fi
+
+  if [ -n "$os" ] && [ "$os" != "null" ]; then
+    wm size "$os" >/dev/null 2>&1 && ok "Resolusi override direstore ke $os"
+  else
+    wm size reset >/dev/null 2>&1 && ok "Resolusi direset ke default fisik"
+  fi
+
+  if [ -n "$od" ] && [ "$od" != "null" ]; then
+    wm density "$od" >/dev/null 2>&1 && ok "DPI override direstore ke $od"
+  else
+    wm density reset >/dev/null 2>&1 && ok "DPI direset ke default fisik"
+  fi
 }
+
 restore_all() {
   banner
-  section "RESTORE MODE"
+  printf '%s\n' "${BG_MAGENTA}${WHITE}${BOLD} RESTORE MODE ${RESET}"
   [ -f "$BACKUP_FILE" ] || {
     fail "Backup tidak ditemukan: $BACKUP_FILE"
     warn "Manual emergency: wm size reset ; wm density reset"
     exit 1
   }
-  run_step "Restore display" 8 restore_wm
+
+  restore_wm
   restore_setting global window_animation_scale
   restore_setting global transition_animation_scale
   restore_setting global animator_duration_scale
@@ -603,92 +525,95 @@ restore_all() {
   restore_setting system pointer_speed
   restore_setting system haptic_feedback_enabled
   restore_setting system sound_effects_enabled
-  progress "Restore selesai" 100
-  line
-  ok "Restore selesai. Reboot disarankan jika ada setting belum balik."
+
+  ok "Restore selesai. Reboot disarankan kalau ada setting yang belum balik."
 }
+
 reset_dpi_only() {
   banner
-  section "RESET DPI ONLY"
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} RESET DPI ONLY ${RESET}"
   if wm density reset >/dev/null 2>&1; then
     ok "DPI direset ke default."
   else
     warn "Gagal reset DPI."
   fi
 }
+
 reset_resolution_only() {
   banner
-  section "RESET RESOLUTION ONLY"
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} RESET RESOLUTION ONLY ${RESET}"
   if wm size reset >/dev/null 2>&1; then
     ok "Resolusi direset ke default fisik."
   else
     warn "Gagal reset resolusi."
   fi
 }
+
 reset_display_all() {
   banner
-  section "RESET DISPLAY"
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} RESET DISPLAY ${RESET}"
   wm size reset >/dev/null 2>&1 && ok "Resolusi reset."
   wm density reset >/dev/null 2>&1 && ok "DPI reset."
 }
 
 apply_balanced() {
   banner
-  section "BALANCED GAMING MODE"
-  info "Mode smooth tapi tidak seagresif Ultra."
-  run_step "Backup settings" 8 create_backup
-  run_step "Adaptive DPI" 24 apply_adaptive_dpi
-  run_step "Refresh boost" 40 apply_refresh_rate
-  run_step "Animation 0.5x" 56 apply_animation_fast
-  run_step "GPU/rendering boost" 72 apply_rendering_balanced
-  run_step "Power latency tune" 86 apply_power_latency
-  run_step "Input gaming tune" 96 apply_input_gaming
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} BALANCED GAMING MODE ${RESET}"
+  info "Mode smooth harian + gaming. DPI tidak diubah."
+  create_backup
+  apply_refresh_rate
+  apply_animation_fast
+  apply_rendering_balanced
+  apply_power_latency
+  apply_input_gaming
   apply_maintenance
-  progress "Balanced mode aktif" 100
   line
   ok "Balanced Gaming Mode aktif."
 }
+
 apply_ultra() {
   banner
-  section "ULTRA MAX GAMING MODE"
-  warn "Ultra Mode agresif: bisa lebih boros/panas di beberapa HP."
-  run_step "Backup settings" 6 create_backup
-  run_step "Adaptive DPI engine" 18 apply_adaptive_dpi
-  run_step "Force highest refresh" 32 apply_refresh_rate
-  run_step "Zero animation latency" 46 apply_animation_zero
-  run_step "Ultra GPU/render pipeline" 62 apply_rendering_ultra
-  run_step "Aggressive power/latency" 78 apply_power_latency
-  run_step "Touch/input response" 90 apply_input_gaming
-  run_step "System maintenance" 98 apply_maintenance
-  progress "ULTRA MAX READY" 100
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} ULTRA MAX GAMING MODE ${RESET}"
+  warn "Ultra Mode agresif. DPI tidak diubah, tapi tuning lain lebih nendang."
+  create_backup
+  apply_refresh_rate
+  apply_animation_zero
+  apply_rendering_ultra
+  apply_power_latency
+  apply_input_gaming
+  apply_maintenance
   line
   ok "RenDro Ultra Max Gaming Mode aktif."
-  warn "Kalau panas/boros, pakai Balanced atau Restore."
 }
+
 apply_custom_dpi_mode() {
   banner
-  section "CUSTOM DPI MODE"
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} CUSTOM DPI MODE ${RESET}"
   create_backup
   if [ -n "$ARG2" ]; then
     apply_dpi_value "$ARG2"
   else
-    interactive_custom_dpi
+    fail "Pakai: sh RenDro.sh custom-dpi 600"
+    exit 1
   fi
 }
+
 apply_custom_resolution_mode() {
   banner
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} CUSTOM RESOLUTION MODE ${RESET}"
   create_backup
   if [ -n "$ARG2" ]; then
     apply_custom_resolution_value "$ARG2"
   else
-    interactive_custom_resolution
+    fail "Pakai: sh RenDro.sh custom-res 1080x2400"
+    exit 1
   fi
 }
 
 status_all() {
   banner
-  section "DEVICE STATUS"
-  printf '%s\n' "${WHITE}Device ${DIM}:${RESET} $(getprop ro.product.manufacturer 2>/dev/null) $(getprop ro.product.model 2>/dev/null)"
+  printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} DEVICE STATUS ${RESET}"
+  printf '%s\n' "${WHITE}Device${DIM}:${RESET} $(getprop ro.product.manufacturer 2>/dev/null) $(getprop ro.product.model 2>/dev/null)"
   printf '%s\n' "${WHITE}Android${DIM}:${RESET} $(getprop ro.build.version.release 2>/dev/null) / SDK $(getprop ro.build.version.sdk 2>/dev/null)"
   printf '%s\n' "${WHITE}Kernel ${DIM}:${RESET} $(uname -r 2>/dev/null)"
   printf '%s\n' "${WHITE}Size   ${DIM}:${RESET} $(wm size 2>/dev/null | tr '\n' '; ')"
@@ -703,120 +628,77 @@ status_all() {
   info "Log   : $LOG_FILE"
 }
 
-menu_header() {
-  banner
-  printf '%s\n\n' "${BG_BLUE}${WHITE}${BOLD} MAIN CLI MENU ${RESET} ${DIM}Pilih mode RenDro${RESET}"
-  printf '%s\n' " ${GREEN}${BOLD}[1]${RESET} Ultra Max Gaming Mode ${RED}(agresif)${RESET}"
-  printf '%s\n' " ${CYAN}${BOLD}[2]${RESET} Balanced Gaming Mode ${GREEN}(harian + gaming)${RESET}"
-  printf '%s\n' " ${YELLOW}${BOLD}[3]${RESET} Adaptive DPI Only"
-  printf '%s\n' " ${MAGENTA}${BOLD}[4]${RESET} Custom DPI Manual"
-  printf '%s\n' " ${BLUE}${BOLD}[5]${RESET} Custom Resolusi Layar ${YELLOW}(preview 5 detik + rollback)${RESET}"
-  printf '%s\n' " ${WHITE}${BOLD}[6]${RESET} Status Device & RenDro"
-  printf '%s\n' " ${GREEN}${BOLD}[7]${RESET} Restore Backup"
-  printf '%s\n' " ${YELLOW}${BOLD}[8]${RESET} Reset DPI Only"
-  printf '%s\n' " ${YELLOW}${BOLD}[9]${RESET} Reset Resolusi Only"
-  printf '%s\n' " ${RED}${BOLD}[0]${RESET} Exit"
-  line
-}
-menu_loop() {
-  # Single-shot menu for Android shell app compatibility. Continuous menu
-  # loops are unsafe in Brevent/Bravent/Shizuku-like shell runners because
-  # stdin may be closed and read can immediately return EOF.
-  menu_header
-  printf '%s' "RenDro> Pilih angka: "
-  if ! safe_read choice; then
-    warn "Input tidak tersedia / stdin tertutup. Menu interaktif dihentikan agar tidak spam."
-    printf '%s\n' "Pakai command mode, contoh:"
-    printf '%s\n' "  sh RenDro.sh ultra"
-    printf '%s\n' "  sh RenDro.sh balanced"
-    printf '%s\n' "  sh RenDro.sh custom-dpi 600"
-    printf '%s\n' "  sh RenDro.sh custom-res 1080x2400"
-    exit 1
-  fi
-
-  case "$choice" in
-  1)
-    apply_ultra
-    ;;
-  2)
-    apply_balanced
-    ;;
-  3)
-    banner
-    section "ADAPTIVE DPI ONLY"
-    create_backup
-    apply_adaptive_dpi
-    ;;
-  4)
-    banner
-    create_backup
-    interactive_custom_dpi
-    ;;
-  5)
-    banner
-    create_backup
-    interactive_custom_resolution
-    ;;
-  6)
-    status_all
-    ;;
-  7)
-    restore_all
-    ;;
-  8)
-    reset_dpi_only
-    ;;
-  9)
-    reset_resolution_only
-    ;;
-  0)
-    printf '%s\n' "GG! Keluar dari RenDro Ultra."
-    exit 0
-    ;;
-  *)
-    warn "Pilihan tidak valid."
-    exit 1
-    ;;
-  esac
-}
 usage() {
   banner
   cat <<HELP
 ${BOLD}Command mode:${RESET}
-  sh RenDro.sh                  Buka menu interaktif
-  sh RenDro.sh ultra            Terapkan Ultra Max Gaming Mode
-  sh RenDro.sh balanced         Terapkan Balanced Gaming Mode
-  sh RenDro.sh adaptive-dpi     Terapkan DPI adaptif saja
-  sh RenDro.sh custom-dpi 600   Set DPI manual
+  sh RenDro.sh help
+  sh RenDro.sh ultra
+  sh RenDro.sh balanced
+  sh RenDro.sh adaptive-dpi
+  sh RenDro.sh custom-dpi 600
   sh RenDro.sh custom-res 1080x2400
-  sh RenDro.sh restore          Restore dari backup
-  sh RenDro.sh reset-dpi        Reset DPI saja
-  sh RenDro.sh reset-res        Reset resolusi saja
-  sh RenDro.sh reset-display    Reset DPI + resolusi
-  sh RenDro.sh status           Cek status
+  sh RenDro.sh restore
+  sh RenDro.sh reset-dpi
+  sh RenDro.sh reset-res
+  sh RenDro.sh reset-display
+  sh RenDro.sh status
 
-${YELLOW}Safety:${RESET}
-  Custom resolusi selalu preview. Jika tidak ketik Y dalam 5 detik, otomatis rollback.
-  Emergency manual: adb shell wm size reset ; adb shell wm density reset
+${YELLOW}Catatan:${RESET}
+  - Ultra dan Balanced tidak mengubah DPI.
+  - DPI hanya berubah di adaptive-dpi atau custom-dpi.
+  - Custom resolusi selalu preview dulu, lalu rollback kalau tidak dikonfirmasi dalam 5 detik.
+  - Emergency manual:
+      wm size reset
+      wm density reset
 HELP
 }
+
 main() {
   init_env
   case "$MODE" in
-  menu | --menu | -m) menu_loop ;; ultra | --ultra | -u) apply_ultra ;; balanced | balance | --balanced | -b) apply_balanced ;;
-  adaptive-dpi | dpi-auto | --adaptive-dpi)
-    banner
-    section "ADAPTIVE DPI ONLY"
-    create_backup
-    apply_adaptive_dpi
-    ;;
-  custom-dpi | dpi | --custom-dpi) apply_custom_dpi_mode ;;
-  custom-res | resolution | res | --custom-res) apply_custom_resolution_mode ;; restore | --restore | -r) restore_all ;; reset-dpi | --reset-dpi) reset_dpi_only ;; reset-res | --reset-res) reset_resolution_only ;; reset-display | --reset-display) reset_display_all ;;
-  status | --status | -s) status_all ;; help | --help | -h) usage ;; *)
-    warn "Mode tidak dikenal: $MODE"
-    usage
-    exit 1
-    ;;
+    help|--help|-h|"")
+      usage
+      ;;
+    ultra|--ultra|-u)
+      apply_ultra
+      ;;
+    balanced|balance|--balanced|-b)
+      apply_balanced
+      ;;
+    adaptive-dpi|dpi-auto|--adaptive-dpi)
+      banner
+      printf '%s\n' "${BG_BLUE}${WHITE}${BOLD} ADAPTIVE DPI ONLY ${RESET}"
+      create_backup
+      apply_adaptive_dpi
+      ;;
+    custom-dpi|dpi|--custom-dpi)
+      apply_custom_dpi_mode
+      ;;
+    custom-res|resolution|res|--custom-res)
+      apply_custom_resolution_mode
+      ;;
+    restore|--restore|-r)
+      restore_all
+      ;;
+    reset-dpi|--reset-dpi)
+      reset_dpi_only
+      ;;
+    reset-res|--reset-res)
+      reset_resolution_only
+      ;;
+    reset-display|--reset-display)
+      reset_display_all
+      ;;
+    status|--status|-s)
+      status_all
+      ;;
+    *)
+      warn "Mode tidak dikenal: $MODE"
+      usage
+      exit 1
+      ;;
   esac
 }
+
 main "$@"

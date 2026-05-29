@@ -21,19 +21,40 @@ LOCK_DIR="/data/local/tmp/rendro_safe.lock"
 MODE="${1:-menu}"
 ARG2="${2:-}"
 
-ESC="$(printf '\033')"
-RED="${ESC}[31m"
-GREEN="${ESC}[32m"
-YELLOW="${ESC}[33m"
-BLUE="${ESC}[34m"
-MAGENTA="${ESC}[35m"
-CYAN="${ESC}[36m"
-WHITE="${ESC}[37m"
-BOLD="${ESC}[1m"
-DIM="${ESC}[2m"
-RESET="${ESC}[0m"
-BG_BLUE="${ESC}[44m"
-BG_MAGENTA="${ESC}[45m"
+# Android shell apps such as Brevent/Bravent, Shizuku terminals, and many
+# embedded Shell APK consoles often do not render ANSI escape sequences
+# correctly. Keep output plain by default so users do not see raw "^[...m"
+# codes and screen clear spam. Set RENDRO_COLOR=1 only if your terminal
+# is known to support ANSI colors.
+if [ "${RENDRO_COLOR:-0}" = "1" ]; then
+  ESC="$(printf '\033')"
+  RED="${ESC}[31m"
+  GREEN="${ESC}[32m"
+  YELLOW="${ESC}[33m"
+  BLUE="${ESC}[34m"
+  MAGENTA="${ESC}[35m"
+  CYAN="${ESC}[36m"
+  WHITE="${ESC}[37m"
+  BOLD="${ESC}[1m"
+  DIM="${ESC}[2m"
+  RESET="${ESC}[0m"
+  BG_BLUE="${ESC}[44m"
+  BG_MAGENTA="${ESC}[45m"
+else
+  ESC=""
+  RED=""
+  GREEN=""
+  YELLOW=""
+  BLUE=""
+  MAGENTA=""
+  CYAN=""
+  WHITE=""
+  BOLD=""
+  DIM=""
+  RESET=""
+  BG_BLUE=""
+  BG_MAGENTA=""
+fi
 
 cleanup() { rmdir "$LOCK_DIR" 2>/dev/null; }
 trap cleanup EXIT HUP INT TERM
@@ -70,26 +91,45 @@ fail() {
   log "FAIL: $*"
 }
 
+safe_read() {
+  # Usage: safe_read varname
+  # Returns 1 when stdin is closed/non-interactive. This prevents infinite
+  # menu redraw loops on Android Shell APK/Brevent style shproc runners.
+  _sr_var="$1"
+  _sr_line=""
+  case "$_sr_var" in ''|*[!A-Za-z0-9_]*) return 1 ;; esac
+  if IFS= read -r _sr_line; then
+    # Safely quote the input before assigning through eval.
+    _sr_quoted=$(printf "%s" "$_sr_line" | sed "s/'/'\\''/g")
+    eval "$_sr_var='$_sr_quoted'"
+    return 0
+  fi
+  eval "$_sr_var=''"
+  return 1
+}
+
 pause_enter() {
-  printf '\n%s' "${DIM}Tekan Enter untuk lanjut...${RESET} "
-  read -r _dummy || true
+  printf '\n%s' "Tekan Enter untuk lanjut... "
+  safe_read _dummy || { printf '\n'; return 0; }
 }
 sleep_tiny() { sleep 0.05 2>/dev/null || sleep 1; }
 
 banner() {
-  clear 2>/dev/null || true
+  # Do not clear the screen by default. Some Android shell consoles print
+  # clear-screen escape codes literally, causing unreadable repeated output.
+  [ "${RENDRO_CLEAR:-0}" = "1" ] && clear 2>/dev/null || true
   printf '%s\n' "${MAGENTA}${BOLD}"
   cat <<'ART'
- ██▀███  ▓█████  ███▄    █ ▓█████▄  ██▀███   ▒█████  
-▓██ ▒ ██▒▓█   ▀  ██ ▀█   █ ▒██▀ ██▌▓██ ▒ ██▒▒██▒  ██▒
-▓██ ░▄█ ▒▒███   ▓██  ▀█ ██▒░██   █▌▓██ ░▄█ ▒▒██░  ██▒
-▒██▀▀█▄  ▒▓█  ▄ ▓██▒  ▐▌██▒░▓█▄   ▌▒██▀▀█▄  ▒██   ██░
-░██▓ ▒██▒░▒████▒▒██░   ▓██░░▒████▓ ░██▓ ▒██▒░ ████▓▒░
-░ ▒▓ ░▒▓░░░ ▒░ ░░ ▒░   ▒ ▒  ▒▒▓  ▒ ░ ▒▓ ░▒▓░░ ▒░▒░▒░ 
-  ░▒ ░ ▒░ ░ ░  ░░ ░░   ░ ▒░ ░ ▒  ▒   ░▒ ░ ▒░  ░ ▒ ▒░ 
-  ░░   ░    ░      ░   ░ ░  ░ ░  ░   ░░   ░ ░ ░ ░ ▒  
-   ░        ░  ░         ░    ░       ░         ░ ░  
-                            ░                        
+ â–ˆâ–ˆâ–€â–ˆâ–ˆâ–ˆ  â–“â–ˆâ–ˆâ–ˆâ–ˆâ–ˆ  â–ˆâ–ˆâ–ˆâ–„    â–ˆ â–“â–ˆâ–ˆâ–ˆâ–ˆâ–ˆâ–„  â–ˆâ–ˆâ–€â–ˆâ–ˆâ–ˆ   â–’â–ˆâ–ˆâ–ˆâ–ˆâ–ˆ  
+â–“â–ˆâ–ˆ â–’ â–ˆâ–ˆâ–’â–“â–ˆ   â–€  â–ˆâ–ˆ â–€â–ˆ   â–ˆ â–’â–ˆâ–ˆâ–€ â–ˆâ–ˆâ–Œâ–“â–ˆâ–ˆ â–’ â–ˆâ–ˆâ–’â–’â–ˆâ–ˆâ–’  â–ˆâ–ˆâ–’
+â–“â–ˆâ–ˆ â–‘â–„â–ˆ â–’â–’â–ˆâ–ˆâ–ˆ   â–“â–ˆâ–ˆ  â–€â–ˆ â–ˆâ–ˆâ–’â–‘â–ˆâ–ˆ   â–ˆâ–Œâ–“â–ˆâ–ˆ â–‘â–„â–ˆ â–’â–’â–ˆâ–ˆâ–‘  â–ˆâ–ˆâ–’
+â–’â–ˆâ–ˆâ–€â–€â–ˆâ–„  â–’â–“â–ˆ  â–„ â–“â–ˆâ–ˆâ–’  â–â–Œâ–ˆâ–ˆâ–’â–‘â–“â–ˆâ–„   â–Œâ–’â–ˆâ–ˆâ–€â–€â–ˆâ–„  â–’â–ˆâ–ˆ   â–ˆâ–ˆâ–‘
+â–‘â–ˆâ–ˆâ–“ â–’â–ˆâ–ˆâ–’â–‘â–’â–ˆâ–ˆâ–ˆâ–ˆâ–’â–’â–ˆâ–ˆâ–‘   â–“â–ˆâ–ˆâ–‘â–‘â–’â–ˆâ–ˆâ–ˆâ–ˆâ–“ â–‘â–ˆâ–ˆâ–“ â–’â–ˆâ–ˆâ–’â–‘ â–ˆâ–ˆâ–ˆâ–ˆâ–“â–’â–‘
+â–‘ â–’â–“ â–‘â–’â–“â–‘â–‘â–‘ â–’â–‘ â–‘â–‘ â–’â–‘   â–’ â–’  â–’â–’â–“  â–’ â–‘ â–’â–“ â–‘â–’â–“â–‘â–‘ â–’â–‘â–’â–‘â–’â–‘ 
+  â–‘â–’ â–‘ â–’â–‘ â–‘ â–‘  â–‘â–‘ â–‘â–‘   â–‘ â–’â–‘ â–‘ â–’  â–’   â–‘â–’ â–‘ â–’â–‘  â–‘ â–’ â–’â–‘ 
+  â–‘â–‘   â–‘    â–‘      â–‘   â–‘ â–‘  â–‘ â–‘  â–‘   â–‘â–‘   â–‘ â–‘ â–‘ â–‘ â–’  
+   â–‘        â–‘  â–‘         â–‘    â–‘       â–‘         â–‘ â–‘  
+                            â–‘                        
 ART
   printf '%s\n' "${RESET}${CYAN}${BOLD}      Ultra Android Gaming Tuner - ADB Shell Edition${RESET}"
   printf '%s\n' "${WHITE}${BOLD}      Creator:${RESET} ${GREEN}$CREATOR${RESET} | ${WHITE}${BOLD}YouTube:${RESET} ${RED}$YOUTUBE${RESET} | ${WHITE}${BOLD}TikTok:${RESET} ${CYAN}$TIKTOK${RESET}"
@@ -114,8 +154,7 @@ progress() {
     bar="${bar}."
     i=$((i + 1))
   done
-  printf '\r%s [%s] %3s%% %s' "${YELLOW}>${RESET}" "$bar" "$percent" "$label"
-  [ "$percent" -ge 100 ] && printf '\n'
+  printf '%s [%s] %3s%% %s\n' "${YELLOW}>${RESET}" "$bar" "$percent" "$label"
 }
 run_step() {
   label="$1"
@@ -347,8 +386,11 @@ apply_adaptive_dpi() {
 interactive_custom_dpi() {
   section "CUSTOM DPI ENGINE"
   printf '%s\n' "${CYAN}Masukkan DPI manual. Range aman 240-900.${RESET}"
-  printf '%s' "${YELLOW}DPI custom: ${RESET}"
-  read -r dpi || dpi=""
+  printf '%s' "DPI custom: "
+  if ! safe_read dpi; then
+    warn "Input tidak tersedia. Jalankan command mode: sh RenDro.sh custom-dpi 600"
+    return 1
+  fi
   apply_dpi_value "$dpi"
 }
 
@@ -442,7 +484,8 @@ confirm_preview_5s() {
   printf '%s\n' "Ketik N atau biarkan timeout untuk otomatis rollback."
   printf '%s' "Konfirmasi [Y/N] 5s: "
   ans=""
-  # shellcheck disable=SC3045 # Android /system/bin/sh is commonly mksh and supports read -t; needed for safe preview timeout.
+  # Android /system/bin/sh is commonly mksh and supports read -t. If the
+  # shell/runner does not support it or stdin is closed, rollback safely.
   if read -r -t 5 ans 2>/dev/null; then
     :
   else
@@ -493,8 +536,11 @@ interactive_custom_resolution() {
   info "Resolusi aktif: ${cur:-unknown}"
   print_resolution_limits "$phys"
   printf '%s\n' "${CYAN}Format wajib: WIDTHxHEIGHT. Contoh: 1080x2400 atau 900x2000.${RESET}"
-  printf '%s' "${YELLOW}Resolusi custom: ${RESET}"
-  read -r target || target=""
+  printf '%s' "Resolusi custom: "
+  if ! safe_read target; then
+    warn "Input tidak tersedia. Jalankan command mode: sh RenDro.sh custom-res 1080x2400"
+    return 1
+  fi
   apply_custom_resolution_value "$target"
 }
 
@@ -673,64 +719,65 @@ menu_header() {
   line
 }
 menu_loop() {
-  while true; do
-    menu_header
-    printf '%s' "${YELLOW}${BOLD}RenDro>${RESET} Pilih angka: "
-    read -r choice || choice=""
-    case "$choice" in
-    1)
-      apply_ultra
-      pause_enter
-      ;;
-    2)
-      apply_balanced
-      pause_enter
-      ;;
-    3)
-      banner
-      section "ADAPTIVE DPI ONLY"
-      create_backup
-      apply_adaptive_dpi
-      pause_enter
-      ;;
-    4)
-      banner
-      create_backup
-      interactive_custom_dpi
-      pause_enter
-      ;;
-    5)
-      banner
-      create_backup
-      interactive_custom_resolution
-      pause_enter
-      ;;
-    6)
-      status_all
-      pause_enter
-      ;;
-    7)
-      restore_all
-      pause_enter
-      ;;
-    8)
-      reset_dpi_only
-      pause_enter
-      ;;
-    9)
-      reset_resolution_only
-      pause_enter
-      ;;
-    0)
-      printf '%s\n' "${GREEN}GG! Keluar dari RenDro Ultra.${RESET}"
-      exit 0
-      ;;
-    *)
-      warn "Pilihan tidak valid."
-      sleep 1
-      ;;
-    esac
-  done
+  # Single-shot menu for Android shell app compatibility. Continuous menu
+  # loops are unsafe in Brevent/Bravent/Shizuku-like shell runners because
+  # stdin may be closed and read can immediately return EOF.
+  menu_header
+  printf '%s' "RenDro> Pilih angka: "
+  if ! safe_read choice; then
+    warn "Input tidak tersedia / stdin tertutup. Menu interaktif dihentikan agar tidak spam."
+    printf '%s\n' "Pakai command mode, contoh:"
+    printf '%s\n' "  sh RenDro.sh ultra"
+    printf '%s\n' "  sh RenDro.sh balanced"
+    printf '%s\n' "  sh RenDro.sh custom-dpi 600"
+    printf '%s\n' "  sh RenDro.sh custom-res 1080x2400"
+    exit 1
+  fi
+
+  case "$choice" in
+  1)
+    apply_ultra
+    ;;
+  2)
+    apply_balanced
+    ;;
+  3)
+    banner
+    section "ADAPTIVE DPI ONLY"
+    create_backup
+    apply_adaptive_dpi
+    ;;
+  4)
+    banner
+    create_backup
+    interactive_custom_dpi
+    ;;
+  5)
+    banner
+    create_backup
+    interactive_custom_resolution
+    ;;
+  6)
+    status_all
+    ;;
+  7)
+    restore_all
+    ;;
+  8)
+    reset_dpi_only
+    ;;
+  9)
+    reset_resolution_only
+    ;;
+  0)
+    printf '%s\n' "GG! Keluar dari RenDro Ultra."
+    exit 0
+    ;;
+  *)
+    warn "Pilihan tidak valid."
+    exit 1
+    ;;
+  esac
 }
 usage() {
   banner
